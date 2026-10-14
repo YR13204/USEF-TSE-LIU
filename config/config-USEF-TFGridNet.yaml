@@ -7,7 +7,7 @@ continue_from: ''
 max_norm: 5
 
 print_freq: 100
-name: chkpt/test
+name: USEF-TFGridNet
 
 
 epochs: 200
@@ -20,9 +20,9 @@ num_spks: 1
 duration: 4
 sample_rate: 8000
 
-train_path: path/to/training_data
-valid_path: path/to/valid_data
-test_path: path/to/test_data
+train_path: /root/private_data/usef-net/data/list/tr
+valid_path: /root/private_data/usef-net/data/list/tt_avg
+test_path:  /root/private_data/usef-net/data/list/tt_avg
 
 mix_scp: mix.scp
 ref_scp: ref.scp
@@ -61,3 +61,5 @@ MaskNet: !new:models.model_USEF_TFGridNet.Tar_Model
 
 modules:
     masknet: !ref <MaskNet>
+
+use_bf16: true

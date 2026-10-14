@@ -5,18 +5,24 @@ import numpy as np
 import torch
 import torch.nn as nn
 import random
-from torchaudio import transforms
+# from torchaudio import transforms
 from scipy.signal import fftconvolve
 from python_speech_features import sigproc
+
+# class logFbankCal(nn.Module):
+#     def __init__(self, sample_rate, n_fft, win_length, hop_length, n_mels):
+#         super(logFbankCal, self).__init__()
+#         self.fbankCal = transforms.MelSpectrogram(sample_rate=sample_rate,
+#                                                   n_fft=n_fft,
+#                                                   win_length=win_length,
+#                                                   hop_length=hop_length,
+#                                                   n_mels=n_mels,)
 
 class logFbankCal(nn.Module):
     def __init__(self, sample_rate, n_fft, win_length, hop_length, n_mels):
         super(logFbankCal, self).__init__()
-        self.fbankCal = transforms.MelSpectrogram(sample_rate=sample_rate,
-                                                  n_fft=n_fft,
-                                                  win_length=win_length,
-                                                  hop_length=hop_length,
-                                                  n_mels=n_mels,)
+        from torchaudio import transforms
+        self.fbankCal = transforms.MelSpectrogram(...)
 
     def forward(self, x, is_aug=[]):
         

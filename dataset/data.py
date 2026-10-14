@@ -6,10 +6,11 @@ import random
 import librosa
 
 class tr_dataset(Dataset):
-    def __init__(self, mix_scp, ref_scp, aux_scp, dur, fs):
+    def __init__(self, mix_scp, ref_scp, aux_scp, dur, fs, aux_from_scp=False):
         self.mix = {x.split()[0]:x.split()[1] for x in open(mix_scp)}
         self.ref = {x.split()[0]:x.split()[1] for x in open(ref_scp)}
         self.aux = {x.split()[0]:x.split()[1] for x in open(aux_scp)}
+        self.aux_lengths = {x.split()[0]:int(x.split()[2]) for x in open(aux_scp) if len(x.split()) > 2}
         assert len(self.mix) == len(self.ref) == len(self.aux)
         
         wav_id = []
@@ -20,6 +21,7 @@ class tr_dataset(Dataset):
         self.tlen = dur * fs
         
         self.fs = fs
+        self.aux_from_scp = aux_from_scp
         self.len = len(self.mix)
     
     def _trun_wav(self, y, tlen, offset=0):
@@ -41,20 +43,26 @@ class tr_dataset(Dataset):
         utt = self.wav_id[index]
         mix_wav_path = self.mix[utt]
         target_wav_path = self.ref[utt]
-        exclude = [utt.split('_')[0]+'.wav', utt.split('_')[2]+'.wav']
-        aux_list = os.listdir(os.path.dirname(self.aux[utt]))
-        aux_wav_path = os.path.join(os.path.dirname(self.aux[utt]), random.choice([x for x in aux_list if x not in exclude]))
+        if self.aux_from_scp:
+            aux_wav_path = self.aux[utt]
+        else:
+            exclude = [utt.split('_')[0]+'.wav', utt.split('_')[2]+'.wav']
+            aux_list = os.listdir(os.path.dirname(self.aux[utt]))
+            aux_wav_path = os.path.join(os.path.dirname(self.aux[utt]), random.choice([x for x in aux_list if x not in exclude]))
         
         mix_wav, _ = librosa.load(mix_wav_path, sr=self.fs)
         target_wav, _ = librosa.load(target_wav_path, sr=self.fs)
         aux_wav, _ = librosa.load(aux_wav_path, sr=self.fs)
+        if utt in self.aux_lengths:
+            aux_wav = aux_wav[:self.aux_lengths[utt]]
 
         offset = random.randint(0, max(len(target_wav) - self.tlen, 0))
         target_wav = self._trun_wav(target_wav, self.tlen, offset)
         mix_wav = self._trun_wav(mix_wav, self.tlen, offset)
 
-        offset = random.randint(0, max(len(aux_wav) - self.tlen + 8000, 0))
-        aux_wav = self._trun_wav(aux_wav, self.tlen - 8000, offset) # aux_len = 3s
+        aux_tlen = self.tlen - self.fs
+        offset = random.randint(0, max(len(aux_wav) - aux_tlen, 0))
+        aux_wav = self._trun_wav(aux_wav, aux_tlen, offset)
         
         mix_wav = torch.from_numpy(mix_wav)
         target_wav = torch.from_numpy(target_wav)
@@ -74,6 +82,7 @@ class te_dataset(Dataset):
         self.mix = {x.split()[0]:x.split()[1] for x in open(mix_scp)}
         self.ref = {x.split()[0]:x.split()[1] for x in open(ref_scp)}
         self.aux = {x.split()[0]:x.split()[1] for x in open(aux_scp)}
+        self.aux_lengths = {x.split()[0]:int(x.split()[2]) for x in open(aux_scp) if len(x.split()) > 2}
         assert len(self.mix) == len(self.ref) == len(self.aux)
         
         wav_id = []
@@ -108,6 +117,8 @@ class te_dataset(Dataset):
         mix_wav, _ = librosa.load(mix_wav_path, sr=self.fs)
         target_wav, _ = librosa.load(target_wav_path, sr=self.fs)
         aux_wav, _ = librosa.load(aux_wav_path, sr=self.fs)
+        if utt in self.aux_lengths:
+            aux_wav = aux_wav[:self.aux_lengths[utt]]
         
         mix_wav = torch.from_numpy(mix_wav)
         target_wav = torch.from_numpy(target_wav)

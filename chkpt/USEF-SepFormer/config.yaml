@@ -1,8 +1,28 @@
+optimizer: !name:torch.optim.Adam
+    lr: 0.0001
+    weight_decay: 0
+
+checkpoint: 1
+continue_from: ''
+max_norm: 5
+
+print_freq: 100
+name: USEF-SepFormer
+
+
+epochs: 200
+batch_size: 2
+num_workers: 2
+valid_batch_size: 1
+
+
+num_spks: 1
+duration: 4
 sample_rate: 8000
 
-wsj0-2mix: data/test/wsj0-2mix
-wham!: data/test/wham!
-whamr!: data/test/whamr!
+train_path: /root/private_data/usef-net/data/list/tr
+valid_path: /root/private_data/usef-net/data/list/tt_avg
+test_path:  /root/private_data/usef-net/data/list/tt_avg
 
 mix_scp: mix.scp
 ref_scp: ref.scp
@@ -14,6 +34,7 @@ out_channels: 256
 kernel_size: 16
 kernel_stride: 8
 embd: 256
+
 
 # Specifying the network
 Encoder: !new:models.model_USEF_SepFormer.Encoder
@@ -67,7 +88,7 @@ MaskNet: !new:models.model_USEF_SepFormer.Tar_Model
     out_channels: !ref <out_channels>
     num_layers: 2
     norm: ln
-    num_spks: 1
+    num_spks: !ref <num_spks>
     K: 250
 
 modules:

@@ -53,6 +53,7 @@ def main(config, args):
         ref_scp = os.path.join(config['train_path'], config['ref_scp']),
         aux_scp = os.path.join(config['train_path'], config['aux_scp']),
         dur = config['duration'],
+        aux_from_scp = config.get('aux_from_scp', False),
         fs = config['sample_rate']
     )
 

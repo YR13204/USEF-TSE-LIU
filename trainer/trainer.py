@@ -22,6 +22,9 @@ class Trainer(object):
         self.epochs = config['epochs']
         self.max_norm = config['max_norm']
         self.logger = logger
+        self.use_bf16 = config.get('use_bf16', False)
+        self.valid_chunk_samples = int(config.get('valid_chunk_seconds', 0) * config['sample_rate'])
+        self.valid_aux_samples = int(config.get('valid_aux_seconds', 3) * config['sample_rate'])
         # save and load model
         self.save_folder = chkpt_dir
         self.checkpoint = config['checkpoint']
@@ -55,9 +58,27 @@ class Trainer(object):
             embd = embd.cuda()
             ilens = ilens.cuda()
             
-            estimate_source = self.model(mixture, embd)
+            # estimate_source = self.model(mixture, embd)
 
-            loss = batchMean_sisnrLoss(estimate_source, source)
+            # loss = batchMean_sisnrLoss(estimate_source, source)
+
+            # self.optimizer.zero_grad()
+            # loss.backward()
+            # torch.nn.utils.clip_grad_norm_(self.model.parameters(),
+            #                                 self.max_norm)
+            # self.optimizer.step()
+
+            with torch.autocast(
+                device_type='cuda',
+                dtype=torch.bfloat16,
+                enabled=self.use_bf16,
+            ):
+                estimate_source = self.model(mixture, embd)
+
+            # 在 autocast 外用 FP32 计算 SI-SNR loss
+            loss = batchMean_sisnrLoss(
+                estimate_source.float(), source.float()
+            )
 
             self.optimizer.zero_grad()
             loss.backward()
@@ -91,9 +112,40 @@ class Trainer(object):
             embd = embd.cuda()
             ilens = ilens.cuda()
             
-            estimate_source = self.model(mixture, embd)
-            min_len = min(estimate_source.shape[1], source.shape[1])
-            loss = batchMean_sisnrLoss(estimate_source[:,:min_len], source[:,:min_len])
+            # estimate_source = self.model(mixture, embd)
+            # min_len = min(estimate_source.shape[1], source.shape[1])
+            # loss = batchMean_sisnrLoss(estimate_source[:,:min_len], source[:,:min_len])
+
+            # total_loss += loss.item()
+
+            if self.valid_chunk_samples:
+                # Predict bounded chunks, then score the full utterance in FP32 on CPU.
+                aux = embd[:, :self.valid_aux_samples]
+                pieces = []
+                for offset in range(0, mixture.shape[1], self.valid_chunk_samples):
+                    chunk = mixture[:, offset:offset + self.valid_chunk_samples]
+                    length = chunk.shape[1]
+                    if length < self.valid_chunk_samples:
+                        chunk = torch.nn.functional.pad(chunk, (0, self.valid_chunk_samples - length))
+                    with torch.autocast(device_type='cuda', dtype=torch.bfloat16, enabled=self.use_bf16):
+                        estimate = self.model(chunk, aux)
+                    pieces.append(estimate[:, :length].float().cpu())
+                estimate_source = torch.cat(pieces, dim=1)
+                min_len = min(estimate_source.shape[1], source.shape[1])
+                loss = batchMean_sisnrLoss(estimate_source[:, :min_len], source[:, :min_len].float().cpu())
+            else:
+                with torch.autocast(
+                    device_type='cuda',
+                    dtype=torch.bfloat16,
+                    enabled=self.use_bf16,
+                ):
+                    estimate_source = self.model(mixture, embd)
+
+                min_len = min(estimate_source.shape[1], source.shape[1])
+                loss = batchMean_sisnrLoss(
+                    estimate_source[:, :min_len].float(),
+                    source[:, :min_len].float(),
+                )
 
             total_loss += loss.item()
 

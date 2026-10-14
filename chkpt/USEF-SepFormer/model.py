@@ -1,3 +1,13 @@
+"""Library to support dual-path speech separation.
+
+Authors
+ * Cem Subakan 2020
+ * Mirco Ravanelli 2020
+ * Samuele Cornell 2020
+ * Mirko Bronzi 2020
+ * Jianyuan Zhong 2020
+"""
+
 
 import torch
 import torch.nn as nn
@@ -9,7 +19,7 @@ from models.local.PositionalEncoding import PositionalEncoding
 
 EPS = 1e-8
 
-def select_norm(norm, dim, eps=1e-8):
+def select_norm(norm, dim, shape, eps=1e-8):
     
     if norm == "ln":
         return nn.GroupNorm(1, dim, eps=eps)
@@ -174,8 +184,7 @@ class Interblock(nn.Module):
         intra = intra.view(B, S, K, N)
         intra = intra.permute(0, 3, 2, 1).contiguous()
         intra = self.intra_norm(intra) + x
-        
-        # inter_module
+
         inter = intra.permute(0, 2, 3, 1).contiguous().view(B * K, S, N)
         inter = self.inter_mdl(inter+self.pos_enc(inter))[0]
         inter = self.inter_linear(inter)
@@ -220,6 +229,7 @@ class Tar_Model(nn.Module):
         self.encoder = encoder
         self.decoder = decoder
 
+
         self.conv2d = nn.Conv2d(
             out_channels, out_channels*num_spks, kernel_size=1
         )
@@ -235,9 +245,10 @@ class Tar_Model(nn.Module):
         )
 
         self.fusion_mdl = fusion_mdl
+
         self.fusion_norm = select_norm("ln", out_channels, 3)
         self.film = film
-
+        
         self.dual_mdl = nn.ModuleList([])
         for i in range(num_layers):
             self.dual_mdl.append(
@@ -255,12 +266,12 @@ class Tar_Model(nn.Module):
     def forward(self, input, aux):
 
         # [B, N, L]
-
         mix_w = self.encoder(input)
         aux = self.encoder(aux)
         
         x = self.norm_m(mix_w)
         aux = self.norm_m(aux)
+
 
         # [B, N, L]
         x = self.conv1d1(x)
@@ -271,6 +282,7 @@ class Tar_Model(nn.Module):
 
 
         aux = self.fusion_mdl(x, aux)[0]
+        
         x = self.film(x,aux)
         x = self.fusion_norm(x.permute(0,2,1).contiguous())
 

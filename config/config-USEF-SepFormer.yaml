@@ -7,7 +7,7 @@ continue_from: ''
 max_norm: 5
 
 print_freq: 100
-name: chkpt/test
+name: USEF-SepFormer
 
 
 epochs: 200
@@ -20,9 +20,9 @@ num_spks: 1
 duration: 4
 sample_rate: 8000
 
-train_path: /NASdata/zb/data/wsj0-mix/2speakers_bak/wav8k/min/list/tr
-valid_path: /NASdata/zb/data/wsj0-mix/2speakers_bak/wav8k/min/list/tt_avg
-test_path: /NASdata/zb/data/wsj0-mix/2speakers_bak/wav8k/min/list/tt_avg
+train_path: /root/private_data/usef-net/data/list/tr
+valid_path: /root/private_data/usef-net/data/list/tt_avg
+test_path:  /root/private_data/usef-net/data/list/tt_avg
 
 mix_scp: mix.scp
 ref_scp: ref.scp
@@ -93,3 +93,5 @@ MaskNet: !new:models.model_USEF_SepFormer.Tar_Model
 
 modules:
     masknet: !ref <MaskNet>
+
+use_bf16: true

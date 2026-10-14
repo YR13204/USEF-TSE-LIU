@@ -16,13 +16,28 @@ import numpy as np
 import pickle
 import hashlib
 import csv
+# import time
+# import torchaudio
+# import json
+# import re
+# from models.local.torch_audio_backend import check_torchaudio_backend
+
+# check_torchaudio_backend()
+# logger = logging.getLogger(__name__)
+
 import time
-import torchaudio
 import json
 import re
-from models.local.torch_audio_backend import check_torchaudio_backend
 
-check_torchaudio_backend()
+try:
+    import torchaudio
+    from models.local.torch_audio_backend import check_torchaudio_backend
+
+    check_torchaudio_backend()
+except Exception as _e:
+    torchaudio = None
+    print("WARNING: torchaudio unavailable, skipped: %s" % _e)
+
 logger = logging.getLogger(__name__)
 
 
